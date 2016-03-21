@@ -73,7 +73,8 @@ pub struct RigidBody {
     lin_acc_scale:        Vect,        // FIXME: find a better way of doing that.
     ang_acc_scale:        Orientation, // FIXME: find a better way of doing that.
     margin:               Scalar,
-    collision_groups:     CollisionGroups
+    collision_groups:     CollisionGroups,
+    gravity_enabled:      bool
 }
 
 impl Clone for RigidBody {
@@ -102,7 +103,8 @@ impl Clone for RigidBody {
             lin_acc_scale:     self.lin_acc_scale.clone(),
             ang_acc_scale:     self.ang_acc_scale.clone(),
             margin:            self.margin.clone(),
-            collision_groups:  self.collision_groups.clone()
+            collision_groups:  self.collision_groups.clone(),
+            gravity_enabled:   true
         }
     }
 }
@@ -243,6 +245,19 @@ impl RigidBody {
         }
     }
 
+    /// Enable gravity force in acc calculation
+    pub fn enable_gravity(&mut self) {
+        self.gravity_enabled = true;
+        self.update_lin_acc();
+    }
+
+
+    /// Disable gravity force in acc calculation
+    pub fn disable_gravity(&mut self) {
+        self.gravity_enabled = false;
+        self.update_lin_acc();
+    }
+
     /// Creates a new rigid body that can move.
     pub fn new_dynamic<G>(shape: G, density: Scalar, restitution: Scalar, friction: Scalar) -> RigidBody
         where G: Send + Sync + Repr<Point, Matrix> + Volumetric<Scalar, Point, AngularInertia> {
@@ -320,7 +335,8 @@ impl RigidBody {
                 lin_acc_scale:     na::one(),
                 ang_acc_scale:     na::one(),
                 margin:            na::cast(0.04f32), // FIXME: do not hard-code this.
-                collision_groups:  CollisionGroups::new()
+                collision_groups:  CollisionGroups::new(),
+                gravity_enabled:   true
             };
 
         res.update_center_of_mass();
@@ -483,7 +499,10 @@ impl RigidBody {
     /// Update the linear acceleraction from the applied forces.
     #[inline]
     fn update_lin_acc(&mut self) {
-        self.lin_acc = self.lin_force * self.inv_mass + self.gravity;
+        match self.gravity_enabled {
+            true => { self.lin_acc = self.lin_force * self.inv_mass + self.gravity; },
+            false => { self.lin_acc = self.lin_force * self.inv_mass; }
+        }
     }
     /// Update the angular acceleraction from the applied forces.
     #[inline]
